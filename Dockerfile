@@ -5,9 +5,19 @@ WORKDIR /app
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm install
 
-# ─── Stage 2: Builder ─────────────────────────────────────────────────────────
+# ─── Stage 2: Migrator (prisma only, no next build) ──────────────────────────
+FROM node:20-alpine AS migrator
+RUN apk add --no-cache openssl
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json tsconfig.json ./
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# ─── Stage 3: Builder ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
@@ -18,7 +28,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
-# ─── Stage 3: Runner ──────────────────────────────────────────────────────────
+# ─── Stage 4: Runner ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 RUN apk add --no-cache openssl curl
 WORKDIR /app

@@ -87,7 +87,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
+      target: migrator
     container_name: afyacall_migrate
     command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
     depends_on:

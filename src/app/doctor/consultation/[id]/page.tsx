@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -31,7 +31,7 @@ declare global {
 
 type ConsultationPhase = "call" | "notes" | "done";
 
-export default function DoctorConsultationPage() {
+function DoctorConsultationContent() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -84,7 +84,7 @@ export default function DoctorConsultationPage() {
         setIsLoading(false);
         let secs = 0;
         const timer = setInterval(() => setDuration(++secs), 1000);
-        (window as Record<string, unknown>)._callTimer = timer;
+        (window as unknown as Record<string, unknown>)._callTimer = timer;
       });
 
       await frame.join({ url: roomUrl, token });
@@ -112,7 +112,7 @@ export default function DoctorConsultationPage() {
   }
 
   async function endCall() {
-    clearInterval((window as Record<string, unknown>)._callTimer as number);
+    clearInterval((window as unknown as Record<string, unknown>)._callTimer as number);
     await callFrameRef.current?.leave();
 
     // End consultation on server
@@ -297,5 +297,17 @@ export default function DoctorConsultationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DoctorConsultationPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full" />
+      </div>
+    }>
+      <DoctorConsultationContent />
+    </Suspense>
   );
 }

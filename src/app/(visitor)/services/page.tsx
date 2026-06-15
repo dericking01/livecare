@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Stethoscope, ClipboardList, Info, ChevronLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { KioskLayout, AfyaLogo } from "@/components/shared/KioskLayout";
@@ -37,7 +37,7 @@ const services = [
   },
 ];
 
-export default function ServicesPage() {
+function ServicesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const visitorId = searchParams.get("visitorId") ?? "";
@@ -132,5 +132,19 @@ export default function ServicesPage() {
         </div>
       </div>
     </KioskLayout>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={
+      <KioskLayout centered>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full" />
+        </div>
+      </KioskLayout>
+    }>
+      <ServicesContent />
+    </Suspense>
   );
 }

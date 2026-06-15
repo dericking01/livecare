@@ -8,7 +8,7 @@ function createRedisClient(): Redis {
   const client = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    lazyConnect: false,
+    lazyConnect: true,
     retryStrategy(times) {
       if (times > 10) return null;
       return Math.min(times * 100, 3000);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ declare global {
   }
 }
 
-export default function VisitorConsultationPage() {
+function VisitorConsultationContent() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -203,5 +203,17 @@ export default function VisitorConsultationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VisitorConsultationPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full" />
+      </div>
+    }>
+      <VisitorConsultationContent />
+    </Suspense>
   );
 }

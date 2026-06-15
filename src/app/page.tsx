@@ -103,15 +103,17 @@ export default function LandingPage() {
         </div>
 
         {/* Footer */}
-        <footer className="px-6 pb-6 text-center">
-          <p className="text-afya-300 text-xs">
+        <footer className="px-6 pb-8 text-center">
+          <p className="text-afya-300 text-xs mb-4">
             Powered by AfyaCall Telemedicine · Tanzania
           </p>
-          <div className="flex justify-center gap-6 mt-3">
-            <Link href="/login" className="text-afya-300/60 text-xs hover:text-white transition-colors">
-              Staff Login
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/30 bg-white/10 text-white text-sm font-medium hover:bg-white/20 active:scale-95 transition-all"
+          >
+            <Shield className="w-4 h-4" />
+            Staff Login
+          </Link>
         </footer>
       </div>
     </KioskLayout>

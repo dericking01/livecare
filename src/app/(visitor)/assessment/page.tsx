@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -84,7 +84,7 @@ function YesNoButtons({
   );
 }
 
-export default function AssessmentPage() {
+function AssessmentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const visitorId = searchParams.get("visitorId") ?? "";
@@ -267,5 +267,19 @@ export default function AssessmentPage() {
         </div>
       </div>
     </KioskLayout>
+  );
+}
+
+export default function AssessmentPage() {
+  return (
+    <Suspense fallback={
+      <KioskLayout centered>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full" />
+        </div>
+      </KioskLayout>
+    }>
+      <AssessmentContent />
+    </Suspense>
   );
 }

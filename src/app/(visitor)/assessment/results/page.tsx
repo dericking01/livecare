@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle, AlertCircle, Stethoscope, Home, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ const riskConfig = {
   },
 };
 
-export default function AssessmentResultsPage() {
+function AssessmentResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const assessmentId = searchParams.get("id");
@@ -54,13 +54,21 @@ export default function AssessmentResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const stored = sessionStorage.getItem("last_assessment");
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        setAssessment(data);
+        setIsLoading(false);
+        return;
+      } catch {}
+    }
+
     if (!assessmentId) {
       router.push("/");
       return;
     }
 
-    // The assessment was just created, we get it from query params through the API
-    // For now re-fetch
     fetch(`/api/assessment?id=${assessmentId}`)
       .then((r) => r.json())
       .then((json) => {
@@ -69,19 +77,6 @@ export default function AssessmentResultsPage() {
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [assessmentId, router]);
-
-  // If we can't fetch individual assessment, use stored data from the POST response
-  // via sessionStorage
-  useEffect(() => {
-    const stored = sessionStorage.getItem("last_assessment");
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        setAssessment(data);
-        setIsLoading(false);
-      } catch {}
-    }
-  }, []);
 
   if (isLoading) {
     return (
@@ -189,5 +184,24 @@ export default function AssessmentResultsPage() {
         </div>
       </div>
     </KioskLayout>
+  );
+}
+
+export default function AssessmentResultsPage() {
+  return (
+    <Suspense
+      fallback={
+        <KioskLayout centered>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center text-white">
+              <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full mx-auto mb-4" />
+              <p className="text-lg font-medium">Loading results...</p>
+            </div>
+          </div>
+        </KioskLayout>
+      }
+    >
+      <AssessmentResultsContent />
+    </Suspense>
   );
 }

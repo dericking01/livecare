@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,7 +37,7 @@ const GENDERS = [
   { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
 ];
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const service = searchParams.get("service") ?? "consultation";
@@ -74,6 +74,16 @@ export default function RegisterPage() {
 
       if (service === "assessment") {
         router.push(`/assessment?visitorId=${visitorId}`);
+      } else if (service === "consultation") {
+        // Join queue immediately — skip the services selection screen
+        const queueRes = await fetch("/api/queue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitorId }),
+        });
+        const queueJson = await queueRes.json();
+        if (!queueJson.success) throw new Error(queueJson.error);
+        router.push(`/queue/${queueJson.data.id}`);
       } else {
         router.push(`/services?visitorId=${visitorId}`);
       }
@@ -210,5 +220,19 @@ export default function RegisterPage() {
         </div>
       </div>
     </KioskLayout>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <KioskLayout centered>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin w-16 h-16 border-4 border-white/30 border-t-white rounded-full" />
+        </div>
+      </KioskLayout>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 }
