@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 152 100% 33%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 152 100% 33%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Kiosk/tablet optimized touch targets */
+  button, [role="button"], a {
+    @apply select-none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on kiosk */
+  .kiosk-mode {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+@layer components {
+  .afya-gradient {
+    background: linear-gradient(135deg, #004526 0%, #00a65a 50%, #1ab878 100%);
+  }
+
+  .afya-card {
+    @apply bg-white rounded-2xl shadow-md border border-afya-100 p-6;
+  }
+
+  .kiosk-btn {
+    @apply min-h-[64px] text-lg font-semibold rounded-2xl px-8 py-4 transition-all duration-200 active:scale-95;
+  }
+
+  .kiosk-btn-primary {
+    @apply kiosk-btn bg-afya-500 hover:bg-afya-600 text-white shadow-lg shadow-afya-500/30;
+  }
+
+  .kiosk-btn-secondary {
+    @apply kiosk-btn bg-white hover:bg-afya-50 text-afya-700 border-2 border-afya-200;
+  }
+
+  .kiosk-btn-danger {
+    @apply kiosk-btn bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30;
+  }
+
+  .risk-badge-low {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200;
+  }
+
+  .risk-badge-medium {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700 border border-yellow-200;
+  }
+
+  .risk-badge-high {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200;
+  }
+
+  .queue-badge {
+    @apply inline-flex items-center justify-center min-w-[3rem] h-12 px-4 rounded-xl text-xl font-bold bg-afya-500 text-white;
+  }
+
+  .stat-card {
+    @apply bg-white rounded-2xl p-6 shadow-sm border border-gray-100;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Animations */
+@keyframes number-tick {
+  0% { transform: translateY(-20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-number-tick {
+  animation: number-tick 0.5s ease-out;
+}
+
+/* Video consultation overlay */
+.video-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+}
+
+/* Pulse animation for active states */
+.pulse-green {
+  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 166, 90, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(0, 166, 90, 0); }
+}

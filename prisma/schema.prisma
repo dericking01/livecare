@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  DOCTOR
+  BOOTH_ATTENDANT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum AgeGroup {
+  UNDER_18
+  AGE_18_24
+  AGE_25_34
+  AGE_35_44
+  AGE_45_54
+  AGE_55_64
+  AGE_65_PLUS
+}
+
+enum QueueStatus {
+  WAITING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ConsultationStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Users (Staff) ───────────────────────────────────────────────────────────
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String
+  password    String
+  role        Role      @default(BOOTH_ATTENDANT)
+  isActive    Boolean   @default(true)
+  avatar      String?
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  accounts      Account[]
+  sessions      Session[]
+  consultations Consultation[] @relation("DoctorConsultations")
+  activityLogs  ActivityLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ─── NextAuth Tables ─────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Visitors ────────────────────────────────────────────────────────────────
+
+model Visitor {
+  id        String    @id @default(cuid())
+  fullName  String
+  phone     String
+  gender    Gender
+  ageGroup  AgeGroup
+  visitedAt DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  queueEntries      QueueEntry[]
+  healthAssessments HealthAssessment[]
+  activityLogs      ActivityLog[]
+
+  @@index([phone])
+  @@index([visitedAt])
+  @@index([deletedAt])
+  @@map("visitors")
+}
+
+// ─── Queue ────────────────────────────────────────────────────────────────────
+
+model QueueEntry {
+  id          String      @id @default(cuid())
+  queueNumber Int
+  visitorId   String
+  status      QueueStatus @default(WAITING)
+  priority    Int         @default(0)
+  waitStartAt DateTime    @default(now())
+  assignedAt  DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  visitor      Visitor       @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  consultation Consultation?
+
+  @@index([status])
+  @@index([queueNumber])
+  @@index([visitorId])
+  @@index([deletedAt])
+  @@index([waitStartAt])
+  @@map("queue_entries")
+}
+
+// ─── Consultations ────────────────────────────────────────────────────────────
+
+model Consultation {
+  id           String             @id @default(cuid())
+  queueEntryId String             @unique
+  doctorId     String
+  status       ConsultationStatus @default(SCHEDULED)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  durationSecs Int?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  deletedAt    DateTime?
+
+  queueEntry QueueEntry         @relation(fields: [queueEntryId], references: [id])
+  doctor     User               @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  room       DailyRoom?
+  notes      ConsultationNote[]
+
+  @@index([doctorId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([deletedAt])
+  @@map("consultations")
+}
+
+model ConsultationNote {
+  id             String   @id @default(cuid())
+  consultationId String
+  summary        String   @db.Text
+  recommendation String   @db.Text
+  followUpDays   Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+  @@map("consultation_notes")
+}
+
+// ─── Health Assessments ───────────────────────────────────────────────────────
+
+model HealthAssessment {
+  id                  String    @id @default(cuid())
+  visitorId           String
+  age                 Int
+  gender              Gender
+  smokes              Boolean
+  drinksAlcohol       Boolean
+  exercisesRegularly  Boolean
+  hasDiabetes         Boolean
+  hasHypertension     Boolean
+  hasFamilyHistory    Boolean
+  bmi                 Float?
+  riskLevel           RiskLevel
+  riskScore           Int
+  recommendation      String    @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  visitor Visitor @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([visitorId])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("health_assessments")
+}
+
+// ─── Daily Rooms ──────────────────────────────────────────────────────────────
+
+model DailyRoom {
+  id             String   @id @default(cuid())
+  consultationId String   @unique
+  roomName       String   @unique
+  roomUrl        String
+  doctorToken    String   @db.Text
+  visitorToken   String   @db.Text
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([roomName])
+  @@index([consultationId])
+  @@map("daily_rooms")
+}
+
+// ─── Activity Logs ───────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  visitorId String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id])
+  visitor Visitor? @relation(fields: [visitorId], references: [id])
+
+  @@index([userId])
+  @@index([visitorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
