@@ -117,7 +117,7 @@ export default function QueuePage() {
 
   function joinConsultation() {
     if (doctorReady) {
-      router.push(`/consultation/${doctorReady.consultationId}?token=${doctorReady.visitorToken}&room=${encodeURIComponent(doctorReady.roomUrl)}`);
+      router.push(`/consultation/${doctorReady.consultationId}?token=${encodeURIComponent(doctorReady.visitorToken)}&room=${encodeURIComponent(doctorReady.roomUrl)}`);
     }
   }
 

@@ -45,8 +45,10 @@ function DoctorConsultationContent() {
   const [duration, setDuration] = useState(0);
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
 
-  const token = searchParams.get("token") ?? "";
-  const roomUrl = searchParams.get("room") ? decodeURIComponent(searchParams.get("room")!) : "";
+  const rawToken = searchParams.get("token") ?? "";
+  const token = rawToken.includes("%") ? decodeURIComponent(rawToken) : rawToken;
+  const rawRoom = searchParams.get("room") ?? "";
+  const roomUrl = rawRoom.includes("%") ? decodeURIComponent(rawRoom) : rawRoom;
 
   const { register, handleSubmit, formState: { errors } } = useForm<ConsultationNoteInput>({
     resolver: zodResolver(consultationNoteSchema),
@@ -54,18 +56,25 @@ function DoctorConsultationContent() {
   });
 
   useEffect(() => {
-    if (!roomUrl || !containerRef.current) return;
+    if (!roomUrl || !token || !containerRef.current) return;
+
+    let mounted = true;
 
     const script = document.createElement("script");
-    script.src = "https://unpkg.com/@daily-co/daily-js";
+    script.src = "https://unpkg.com/@daily-co/daily-js@0.70.0";
     script.async = true;
-    script.onload = () => initCall();
+    script.onload = () => { if (mounted) initCall(); };
+    script.onerror = () => {
+      if (mounted) toast({ variant: "destructive", title: "Failed to load video SDK", description: "Check your internet connection" });
+    };
     document.head.appendChild(script);
 
     return () => {
+      mounted = false;
       script.remove();
       callFrameRef.current?.destroy().catch(console.error);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomUrl, token]);
 
   async function initCall() {
@@ -80,18 +89,29 @@ function DoctorConsultationContent() {
 
       callFrameRef.current = frame;
 
+      // Hide our spinner immediately — Daily.co iframe has its own connecting UI
+      setIsLoading(false);
+
       frame.on("joined-meeting", () => {
-        setIsLoading(false);
         let secs = 0;
         const timer = setInterval(() => setDuration(++secs), 1000);
         (window as unknown as Record<string, unknown>)._callTimer = timer;
       });
 
+      frame.on("error", (e: unknown) => {
+        const msg = e && typeof e === "object" && "errorMsg" in e
+          ? String((e as Record<string, unknown>).errorMsg)
+          : String(e);
+        console.error("[Daily] Error event:", e);
+        toast({ variant: "destructive", title: "Video error", description: msg });
+      });
+
+      console.log("[Daily] Joining room:", roomUrl, "token length:", token.length);
       await frame.join({ url: roomUrl, token });
     } catch (err) {
-      console.error("Join error:", err);
-      toast({ variant: "destructive", title: "Failed to join call" });
-      setIsLoading(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[Daily] Join error:", msg, { roomUrl, tokenLen: token.length });
+      toast({ variant: "destructive", title: "Failed to join call", description: msg });
     }
   }
 

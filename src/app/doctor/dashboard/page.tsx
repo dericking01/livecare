@@ -104,7 +104,7 @@ export default function DoctorDashboardPage() {
       });
 
       router.push(
-        `/doctor/consultation/${json.data.id}?token=${json.data.room.doctorToken}&room=${encodeURIComponent(json.data.room.roomUrl)}`
+        `/doctor/consultation/${json.data.id}?token=${encodeURIComponent(json.data.room.doctorToken)}&room=${encodeURIComponent(json.data.room.roomUrl)}`
       );
     } catch (error) {
       toast({
