@@ -41,17 +41,18 @@ export default function DoctorDashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const [activeRes, completedRes] = await Promise.all([
-        fetch("/api/queue?status=IN_PROGRESS"),
-        fetch("/api/queue?status=COMPLETED"),
-      ]);
-      const [activeJson, completedJson] = await Promise.all([activeRes.json(), completedRes.json()]);
-      setStats((s) => ({
-        ...s,
-        active: activeJson.success ? activeJson.data.length : s.active,
-        completed: completedJson.success ? completedJson.data.length : s.completed,
-      }));
-    } catch {}
+      const res = await fetch("/api/admin/analytics");
+      const json = await res.json();
+      if (json.success) {
+        setStats((s) => ({
+          ...s,
+          active: json.data.stats.activeConsultations,
+          completed: json.data.stats.completedConsultations,
+        }));
+      }
+    } catch (err) {
+      console.error("Stats fetch error:", err);
+    }
   }, []);
 
   useEffect(() => {

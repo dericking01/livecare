@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   Users, Video, Clock, TrendingUp, RefreshCw,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, Legend,
+  PieChart, Pie, Cell, ResponsiveContainer, Legend,
 } from "recharts";
 import { getSocket } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
@@ -40,34 +39,37 @@ function StatCard({
 }
 
 export default function AdminDashboardPage() {
-  const [liveStats, setLiveStats] = useState<{ waiting?: number; active?: number }>({});
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: analytics, isLoading, refetch } = useQuery<AnalyticsData>({
-    queryKey: ["analytics"],
-    queryFn: async () => {
+  const fetchAnalytics = useCallback(async () => {
+    try {
       const res = await fetch("/api/admin/analytics");
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      return json.data;
-    },
-    refetchInterval: 60_000,
-  });
+      if (json.success) setAnalytics(json.data);
+    } catch (err) {
+      console.error("Analytics fetch error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    fetchAnalytics();
+
     const socket = getSocket();
     socket.emit("admin:join");
+    socket.on("admin:stats-update", fetchAnalytics);
 
-    socket.on("admin:stats-update", (data: typeof liveStats) => {
-      setLiveStats((s) => ({ ...s, ...data }));
-      refetch();
-    });
+    const interval = setInterval(fetchAnalytics, 30_000);
 
-    return () => { socket.off("admin:stats-update"); };
-  }, [refetch]);
+    return () => {
+      socket.off("admin:stats-update", fetchAnalytics);
+      clearInterval(interval);
+    };
+  }, [fetchAnalytics]);
 
   const stats = analytics?.stats;
-  const waiting = liveStats.waiting ?? stats?.visitorsWaiting ?? 0;
-  const active = liveStats.active ?? stats?.activeConsultations ?? 0;
 
   return (
     <div className="space-y-8">
@@ -76,7 +78,7 @@ export default function AdminDashboardPage() {
           <h1 className="text-3xl font-black text-gray-900">Analytics Dashboard</h1>
           <p className="text-gray-500 mt-1">Real-time overview for today</p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} className="gap-2">
+        <Button variant="outline" onClick={fetchAnalytics} className="gap-2">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </Button>
@@ -93,14 +95,14 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Currently Waiting"
-          value={isLoading ? "—" : waiting}
+          value={isLoading ? "—" : (stats?.visitorsWaiting ?? 0)}
           subtitle="in queue"
           icon={Clock}
           color="bg-blue-500"
         />
         <StatCard
           title="Active Consultations"
-          value={isLoading ? "—" : active}
+          value={isLoading ? "—" : (stats?.activeConsultations ?? 0)}
           subtitle="in progress now"
           icon={Video}
           color="bg-orange-500"
@@ -114,7 +116,7 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Charts Row 1 */}
+      {/* Charts */}
       {analytics && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -183,7 +185,6 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Gender Distribution */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -227,7 +228,9 @@ export default function AdminDashboardPage() {
                     <XAxis
                       dataKey="ageGroup"
                       tick={{ fontSize: 10 }}
-                      tickFormatter={(v: string) => v.replace("AGE_", "").replace("_", "-").replace("UNDER_18", "<18").replace("PLUS", "+")}
+                      tickFormatter={(v: string) =>
+                        v.replace("AGE_", "").replace("_", "-").replace("UNDER_18", "<18").replace("PLUS", "+")
+                      }
                     />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
