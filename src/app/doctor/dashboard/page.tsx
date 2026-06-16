@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  Users, Clock, Video, RefreshCw, Play, AlertCircle,
+  Users, Clock, Video, RefreshCw, Play, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,12 @@ import { formatDate, waitMinutes, formatWaitTime } from "@/lib/utils";
 import type { QueueEntryWithVisitor } from "@/types";
 
 type Stats = { waiting: number; active: number; completed: number };
+type ActiveConsultation = {
+  id: string;
+  startedAt: string;
+  room: { roomUrl: string; doctorToken: string } | null;
+  queueEntry: { visitor: { fullName: string } };
+} | null;
 
 export default function DoctorDashboardPage() {
   const { data: session } = useSession();
@@ -22,6 +28,7 @@ export default function DoctorDashboardPage() {
   const [stats, setStats] = useState<Stats>({ waiting: 0, active: 0, completed: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [activeConsultation, setActiveConsultation] = useState<ActiveConsultation>(null);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -36,6 +43,16 @@ export default function DoctorDashboardPage() {
       console.error("Queue fetch error:", err);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const fetchActiveConsultation = useCallback(async () => {
+    try {
+      const res = await fetch("/api/consultations");
+      const json = await res.json();
+      if (json.success) setActiveConsultation(json.data ?? null);
+    } catch (err) {
+      console.error("Active consultation fetch error:", err);
     }
   }, []);
 
@@ -58,6 +75,7 @@ export default function DoctorDashboardPage() {
   useEffect(() => {
     fetchQueue();
     fetchStats();
+    fetchActiveConsultation();
 
     const socket = getSocket();
     if (session?.user?.id) {
@@ -67,16 +85,19 @@ export default function DoctorDashboardPage() {
     socket.on("queue:updated", () => {
       fetchQueue();
       fetchStats();
+      fetchActiveConsultation();
     });
 
     socket.on("doctor:dashboard-update", () => {
       fetchQueue();
       fetchStats();
+      fetchActiveConsultation();
     });
 
     const interval = setInterval(() => {
       fetchQueue();
       fetchStats();
+      fetchActiveConsultation();
     }, 15_000);
 
     return () => {
@@ -84,7 +105,15 @@ export default function DoctorDashboardPage() {
       socket.off("doctor:dashboard-update");
       clearInterval(interval);
     };
-  }, [fetchQueue, fetchStats, session]);
+  }, [fetchQueue, fetchStats, fetchActiveConsultation, session]);
+
+  function rejoinConsultation() {
+    if (activeConsultation?.room) {
+      router.push(
+        `/doctor/consultation/${activeConsultation.id}?token=${encodeURIComponent(activeConsultation.room.doctorToken)}&room=${encodeURIComponent(activeConsultation.room.roomUrl)}`
+      );
+    }
+  }
 
   async function startConsultation(queueEntryId: string) {
     setStartingId(queueEntryId);
@@ -135,6 +164,30 @@ export default function DoctorDashboardPage() {
           Refresh
         </Button>
       </div>
+
+      {/* Rejoin banner — shown when this doctor has an active in-progress consultation */}
+      {activeConsultation?.room && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+              <Video className="w-5 h-5 text-orange-600 animate-pulse" />
+            </div>
+            <div>
+              <div className="font-semibold text-orange-900">Session in progress</div>
+              <div className="text-sm text-orange-600 mt-0.5">
+                Patient: <span className="font-medium">{activeConsultation.queueEntry.visitor.fullName}</span>
+              </div>
+            </div>
+          </div>
+          <Button
+            onClick={rejoinConsultation}
+            className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shrink-0"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Rejoin Session
+          </Button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-6">

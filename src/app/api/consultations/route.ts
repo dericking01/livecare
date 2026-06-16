@@ -5,6 +5,38 @@ import { createConsultationRoom } from "@/lib/daily";
 import { emitDoctorReady } from "@/lib/socket-server";
 import type { ApiResponse } from "@/types";
 
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user || !["DOCTOR", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json<ApiResponse<never>>(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const consultation = await prisma.consultation.findFirst({
+      where: { doctorId: session.user.id, status: "IN_PROGRESS", deletedAt: null },
+      include: {
+        room: true,
+        queueEntry: { include: { visitor: true } },
+      },
+      orderBy: { startedAt: "desc" },
+    });
+
+    return NextResponse.json<ApiResponse<typeof consultation>>({
+      success: true,
+      data: consultation,
+    });
+  } catch (error) {
+    console.error("[GET /api/consultations]", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch active consultation" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();

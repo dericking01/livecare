@@ -88,7 +88,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.activityLog.create({
+    // Log creation separately — don't fail the response if logging fails
+    prisma.activityLog.create({
       data: {
         userId: session.user.id,
         action: "USER_CREATED",
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
         entityId: user.id,
         metadata: { role: user.role },
       },
-    });
+    }).catch((e) => console.error("Activity log failed:", e));
 
     return NextResponse.json<ApiResponse<typeof user>>(
       { success: true, data: user },

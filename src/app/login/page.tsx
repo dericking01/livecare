@@ -50,6 +50,7 @@ export default function LoginPage() {
 
       if (role === "ADMIN") router.push("/admin/dashboard");
       else if (role === "DOCTOR") router.push("/doctor/dashboard");
+      else if (role === "BOOTH_ATTENDANT") router.push("/booth");
       else router.push("/");
     } catch {
       toast({
