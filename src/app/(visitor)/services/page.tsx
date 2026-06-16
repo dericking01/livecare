@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
-import { Stethoscope, ClipboardList, Info, ChevronLeft, ArrowRight } from "lucide-react";
+import { Stethoscope, ClipboardList, ChevronLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { KioskLayout, AfyaLogo } from "@/components/shared/KioskLayout";
 import { toast } from "@/components/ui/toaster";
@@ -15,7 +15,6 @@ const services = [
     title: "Talk to a Doctor",
     description: "Video consultation with a qualified physician. Get medical advice and prescriptions.",
     time: "5–10 min wait",
-    color: "afya",
   },
   {
     id: "assessment",
@@ -24,16 +23,6 @@ const services = [
     title: "Health Assessment",
     description: "Complete a quick risk assessment and get personalized health recommendations.",
     time: "3 minutes",
-    color: "blue",
-  },
-  {
-    id: "about",
-    icon: Info,
-    iconBg: "bg-purple-500",
-    title: "Learn About AfyaCall",
-    description: "Discover our telemedicine services, subscriptions, and how we support your health journey.",
-    time: "Browse freely",
-    color: "purple",
   },
 ];
 
@@ -48,7 +37,6 @@ function ServicesContent() {
 
     try {
       if (serviceId === "consultation") {
-        // Join the queue
         const res = await fetch("/api/queue", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,8 +49,6 @@ function ServicesContent() {
         router.push(`/queue/${json.data.id}`);
       } else if (serviceId === "assessment") {
         router.push(`/assessment?visitorId=${visitorId}`);
-      } else if (serviceId === "about") {
-        router.push("/about");
       }
     } catch (error) {
       toast({
