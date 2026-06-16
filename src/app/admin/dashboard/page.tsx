@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-  Users, Video, Clock, TrendingUp, RefreshCw,
-} from "lucide-react";
+import { Users, Video, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, ResponsiveContainer, Legend,
@@ -14,6 +12,8 @@ import type { AnalyticsData } from "@/types";
 
 const RISK_COLORS = { LOW: "#22c55e", MEDIUM: "#f59e0b", HIGH: "#ef4444" };
 const GENDER_COLORS = { MALE: "#3b82f6", FEMALE: "#ec4899", OTHER: "#8b5cf6", PREFER_NOT_TO_SAY: "#6b7280" };
+
+type LiveStats = { waiting: number; active: number; completedToday: number; visitorsToday: number };
 
 function StatCard({
   title, value, subtitle, icon: Icon, color,
@@ -39,37 +39,57 @@ function StatCard({
 }
 
 export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<LiveStats>({ waiting: 0, active: 0, completedToday: 0, visitorsToday: 0 });
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchAnalytics = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/analytics");
+      const res = await fetch("/api/stats");
       const json = await res.json();
-      if (json.success) setAnalytics(json.data);
+      if (json.success) setStats(json.data);
     } catch (err) {
-      console.error("Analytics fetch error:", err);
+      console.error("Stats fetch error:", err);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const fetchCharts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/analytics");
+      const json = await res.json();
+      if (json.success) setAnalytics(json.data);
+    } catch (err) {
+      console.error("Charts fetch error:", err);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchAnalytics();
+    fetchStats();
+    fetchCharts();
 
     const socket = getSocket();
     socket.emit("admin:join");
-    socket.on("admin:stats-update", fetchAnalytics);
+    socket.on("admin:stats-update", () => {
+      fetchStats();
+      fetchCharts();
+    });
 
-    const interval = setInterval(fetchAnalytics, 30_000);
+    const statsInterval = setInterval(fetchStats, 15_000);
+    const chartsInterval = setInterval(fetchCharts, 60_000);
 
     return () => {
-      socket.off("admin:stats-update", fetchAnalytics);
-      clearInterval(interval);
+      socket.off("admin:stats-update");
+      clearInterval(statsInterval);
+      clearInterval(chartsInterval);
     };
-  }, [fetchAnalytics]);
+  }, [fetchStats, fetchCharts]);
 
-  const stats = analytics?.stats;
+  function handleRefresh() {
+    fetchStats();
+    fetchCharts();
+  }
 
   return (
     <div className="space-y-8">
@@ -78,7 +98,7 @@ export default function AdminDashboardPage() {
           <h1 className="text-3xl font-black text-gray-900">Analytics Dashboard</h1>
           <p className="text-gray-500 mt-1">Real-time overview for today</p>
         </div>
-        <Button variant="outline" onClick={fetchAnalytics} className="gap-2">
+        <Button variant="outline" onClick={handleRefresh} className="gap-2">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </Button>
@@ -88,28 +108,28 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Visitors Today"
-          value={isLoading ? "—" : (stats?.visitorsToday ?? 0)}
+          value={isLoading ? "—" : stats.visitorsToday}
           subtitle="registered at booth"
           icon={Users}
           color="bg-afya-500"
         />
         <StatCard
           title="Currently Waiting"
-          value={isLoading ? "—" : (stats?.visitorsWaiting ?? 0)}
+          value={isLoading ? "—" : stats.waiting}
           subtitle="in queue"
           icon={Clock}
           color="bg-blue-500"
         />
         <StatCard
           title="Active Consultations"
-          value={isLoading ? "—" : (stats?.activeConsultations ?? 0)}
+          value={isLoading ? "—" : stats.active}
           subtitle="in progress now"
           icon={Video}
           color="bg-orange-500"
         />
         <StatCard
           title="Completed Today"
-          value={isLoading ? "—" : (stats?.completedConsultations ?? 0)}
+          value={isLoading ? "—" : stats.completedToday}
           subtitle="consultations done"
           icon={TrendingUp}
           color="bg-green-500"
@@ -120,7 +140,6 @@ export default function AdminDashboardPage() {
       {analytics && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Hourly Visitors */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 mb-6">Hourly Activity (Last 12 Hours)</h2>
               <ResponsiveContainer width="100%" height={220}>
@@ -136,7 +155,6 @@ export default function AdminDashboardPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Risk Distribution */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 mb-6">Health Risk Distribution</h2>
               {analytics.riskDistribution.length === 0 ? (
@@ -170,7 +188,7 @@ export default function AdminDashboardPage() {
                     {analytics.riskDistribution.map((d) => (
                       <div key={d.level} className="flex items-center gap-3">
                         <div
-                          className="w-3 h-3 rounded-full"
+                          className="w-3 h-3 rounded-full shrink-0"
                           style={{ background: RISK_COLORS[d.level as keyof typeof RISK_COLORS] }}
                         />
                         <div>
@@ -186,7 +204,6 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Gender Distribution */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Gender Distribution</h2>
               {analytics.genderDistribution.length === 0 ? (
@@ -216,7 +233,6 @@ export default function AdminDashboardPage() {
               )}
             </div>
 
-            {/* Age Distribution */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Age Distribution</h2>
               {analytics.ageDistribution.length === 0 ? (

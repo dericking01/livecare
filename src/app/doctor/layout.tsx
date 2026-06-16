@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Stethoscope, LayoutDashboard } from "lucide-react";
+import Image from "next/image";
+import { LayoutDashboard } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
@@ -17,14 +18,18 @@ export default async function DoctorLayout({ children }: { children: React.React
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-afya-500 rounded-xl flex items-center justify-center">
-                <Stethoscope className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="font-bold text-gray-900">AfyaCall</div>
-                <div className="text-xs text-gray-500">Doctor Portal</div>
-              </div>
+            <div className="flex items-center gap-2">
+              <Image
+                src="/assets/images/afyaCall-logo.png"
+                alt="AfyaCall"
+                width={120}
+                height={45}
+                className="object-contain"
+                priority
+              />
+              <span className="text-xs text-gray-400 font-medium border-l border-gray-200 pl-2 ml-1">
+                Doctor Portal
+              </span>
             </div>
 
             <div className="flex items-center gap-4">

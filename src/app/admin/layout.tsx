@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Users, BarChart3, Shield } from "lucide-react";
+import Image from "next/image";
+import { LayoutDashboard, Users, BarChart3 } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 
 function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
@@ -27,15 +28,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col sticky top-0 h-screen">
-        <div className="px-6 py-6 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-afya-500 rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="font-bold text-gray-900">AfyaCall</div>
-              <div className="text-xs text-gray-500">Admin Portal</div>
-            </div>
+        <div className="px-6 py-5 border-b border-gray-100">
+          <Image
+            src="/assets/images/afyaCall-logo.png"
+            alt="AfyaCall"
+            width={140}
+            height={53}
+            className="object-contain"
+            priority
+          />
+          <div className="text-xs text-gray-400 font-medium mt-1.5 tracking-wide uppercase">
+            Admin Portal
           </div>
         </div>
 

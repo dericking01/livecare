@@ -14,7 +14,7 @@ export default function LandingPage() {
             <AfyaLogo size="lg" />
             <div className="text-right text-white/80">
               <div className="text-sm font-semibold tracking-wide">Saba Saba</div>
-              <div className="text-xs opacity-60 mt-0.5">Exhibition 2024</div>
+              <div className="text-xs opacity-60 mt-0.5">Exhibition 2026</div>
             </div>
           </div>
         </header>

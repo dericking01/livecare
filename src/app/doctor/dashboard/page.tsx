@@ -41,13 +41,13 @@ export default function DoctorDashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/analytics");
+      const res = await fetch("/api/stats");
       const json = await res.json();
       if (json.success) {
         setStats((s) => ({
           ...s,
-          active: json.data.stats.activeConsultations,
-          completed: json.data.stats.completedConsultations,
+          active: json.data.active,
+          completed: json.data.completedToday,
         }));
       }
     } catch (err) {
