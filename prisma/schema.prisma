@@ -54,6 +54,35 @@ enum ConsultationStatus {
   CANCELLED
 }
 
+// ─── Notification Enums ───────────────────────────────────────────────────────
+
+enum NotificationEventType {
+  PATIENT_JOINED_QUEUE
+  CONSULTATION_STARTED
+  CONSULTATION_ENDED_PATIENT
+  CONSULTATION_ENDED_DOCTOR
+  HIGH_RISK_ASSESSMENT
+  NEW_STAFF_ACCOUNT
+  LONG_WAIT_ALERT
+}
+
+enum NotificationRecipient {
+  PATIENT
+  ALL_DOCTORS
+  ASSIGNED_DOCTOR
+  ALL_ADMINS
+  ALL_BOOTH_ATTENDANTS
+  ALL_STAFF
+  CUSTOM_PHONE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 // ─── Users (Staff) ───────────────────────────────────────────────────────────
 
 model User {
@@ -61,6 +90,7 @@ model User {
   email       String    @unique
   name        String
   password    String
+  phone       String?
   role        Role      @default(BOOTH_ATTENDANT)
   isActive    Boolean   @default(true)
   avatar      String?
@@ -262,6 +292,51 @@ model DailyRoom {
   @@index([roomName])
   @@index([consultationId])
   @@map("daily_rooms")
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  id              String                @id @default(cuid())
+  eventType       NotificationEventType @unique
+  name            String
+  description     String                @db.Text
+  messageTemplate String                @db.Text
+  recipientType   NotificationRecipient
+  isEnabled       Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  logs NotificationLog[]
+
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id               String                @id @default(cuid())
+  templateId       String?
+  eventType        NotificationEventType
+  recipientPhone   String
+  recipientName    String
+  recipientType    NotificationRecipient
+  renderedMessage  String                @db.Text
+  originatorConvId String                @unique
+  gatewayRequestId String?
+  status           NotificationStatus    @default(PENDING)
+  errorMessage     String?
+  relatedEntityId  String?
+  metadata         Json?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  template NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([eventType])
+  @@index([status])
+  @@index([recipientPhone])
+  @@index([createdAt])
+  @@index([relatedEntityId])
+  @@map("notification_logs")
 }
 
 // ─── Activity Logs ───────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getNextQueueNumber } from "@/lib/redis";
 import { emitNewVisitorJoined, emitQueuePositionUpdate } from "@/lib/socket-server";
+import { triggerNotification } from "@/lib/notifications";
 import type { ApiResponse, QueueEntryWithVisitor } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -65,6 +66,14 @@ export async function POST(req: NextRequest) {
 
     emitNewVisitorJoined();
 
+    // Fire-and-forget: notify all doctors that a new patient is waiting
+    triggerNotification("PATIENT_JOINED_QUEUE", {
+      patientName:  entry.visitor.fullName,
+      patientPhone: entry.visitor.phone,
+      queueNumber:  entry.queueNumber,
+      queueEntryId: entry.id,
+    }).catch((err) => console.error("[notifications] PATIENT_JOINED_QUEUE:", err));
+
     // Notify visitor of their position
     const position = await prisma.queueEntry.count({
       where: {
@@ -112,6 +121,22 @@ export async function GET(req: NextRequest) {
         },
       },
     });
+
+    // Fire-and-forget: alert staff for any entry waiting >15 minutes (rate-limited per entry/60 min)
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const longWaiters = (entries as QueueEntryWithVisitor[]).filter(
+      (e) => e.status === "WAITING" && new Date(e.waitStartAt) <= fifteenMinsAgo
+    );
+    for (const e of longWaiters) {
+      const waited = Math.floor((Date.now() - new Date(e.waitStartAt).getTime()) / 60_000);
+      triggerNotification("LONG_WAIT_ALERT", {
+        patientName:  e.visitor.fullName,
+        patientPhone: e.visitor.phone,
+        queueNumber:  e.queueNumber,
+        queueEntryId: e.id,
+        waitMinutes:  waited,
+      }).catch((err) => console.error("[notifications] LONG_WAIT_ALERT:", err));
+    }
 
     return NextResponse.json<ApiResponse<QueueEntryWithVisitor[]>>({
       success: true,

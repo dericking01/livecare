@@ -23,6 +23,7 @@ type StaffUser = {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   role: string;
   isActive: boolean;
   lastLoginAt: string | null;
@@ -127,7 +128,7 @@ export default function DoctorsPage() {
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Name</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Email</th>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Email / Phone</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Role</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Status</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Consultations</th>
@@ -147,7 +148,12 @@ export default function DoctorsPage() {
                           <span className="font-semibold text-gray-900">{user.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-600">{user.email}</div>
+                        {user.phone && (
+                          <div className="text-xs text-gray-400 mt-0.5">{user.phone}</div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span className="text-sm font-medium text-gray-700">
                           {role?.icon} {role?.label}
@@ -218,6 +224,12 @@ export default function DoctorsPage() {
                   <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Phone Number <span className="text-gray-400 font-normal">(optional — for SMS notifications)</span></Label>
+              <Input {...register("phone")} placeholder="e.g. 0712345678" />
+              {errors.phone && <p className="text-red-500 text-xs">{errors.phone.message}</p>}
             </div>
 
             <DialogFooter className="gap-2 pt-2">

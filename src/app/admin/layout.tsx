@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, Users, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, BarChart3, Bell } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 
 function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
@@ -46,6 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <NavLink href="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <NavLink href="/admin/doctors" icon={Users} label="Staff & Doctors" />
           <NavLink href="/admin/reports" icon={BarChart3} label="Reports & Analytics" />
+          <NavLink href="/admin/notifications" icon={Bell} label="Notifications" />
         </nav>
 
         <div className="px-3 py-4 border-t border-gray-100">

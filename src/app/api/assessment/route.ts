@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { healthAssessmentSchema } from "@/lib/validations";
+import { triggerNotification } from "@/lib/notifications";
 import type { ApiResponse, RiskLevel } from "@/types";
 
 function calculateRisk(data: {
@@ -92,6 +93,21 @@ export async function POST(req: NextRequest) {
         metadata: { riskLevel, riskScore },
       },
     });
+
+    if (riskLevel === "HIGH") {
+      const visitor = await prisma.visitor.findUnique({
+        where: { id: visitorId },
+        select: { fullName: true, phone: true },
+      });
+      if (visitor) {
+        triggerNotification("HIGH_RISK_ASSESSMENT", {
+          patientName:  visitor.fullName,
+          patientPhone: visitor.phone,
+          riskScore,
+          riskLevel,
+        }).catch((err) => console.error("[notifications] HIGH_RISK_ASSESSMENT:", err));
+      }
+    }
 
     return NextResponse.json<ApiResponse<typeof assessment>>(
       { success: true, data: assessment },

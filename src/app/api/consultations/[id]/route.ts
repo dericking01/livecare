@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { consultationNoteSchema } from "@/lib/validations";
 import { emitConsultationEnded } from "@/lib/socket-server";
+import { triggerNotification } from "@/lib/notifications";
 import type { ApiResponse } from "@/types";
 
 export async function GET(
@@ -79,6 +80,13 @@ export async function PATCH(
       const durationSecs = consultation.startedAt
         ? Math.floor((endedAt.getTime() - consultation.startedAt.getTime()) / 1000)
         : 0;
+      const durationMins = Math.round(durationSecs / 60);
+
+      // Fetch patient details for notifications
+      const fullConsultation = await prisma.consultation.findUnique({
+        where: { id },
+        include: { queueEntry: { include: { visitor: true } } },
+      });
 
       const [updated] = await prisma.$transaction([
         prisma.consultation.update({
@@ -102,6 +110,25 @@ export async function PATCH(
       });
 
       emitConsultationEnded(consultation.queueEntryId, id);
+
+      if (fullConsultation) {
+        const visitor = fullConsultation.queueEntry.visitor;
+        const sharedCtx = {
+          patientName:    visitor.fullName,
+          patientPhone:   visitor.phone,
+          doctorName:     session.user.name,
+          doctorId:       session.user.id,
+          consultationId: id,
+          queueEntryId:   consultation.queueEntryId,
+          duration:       durationMins,
+        };
+        // Thank-you SMS to patient
+        triggerNotification("CONSULTATION_ENDED_PATIENT", sharedCtx)
+          .catch((err) => console.error("[notifications] CONSULTATION_ENDED_PATIENT:", err));
+        // Summary SMS to doctor
+        triggerNotification("CONSULTATION_ENDED_DOCTOR", sharedCtx)
+          .catch((err) => console.error("[notifications] CONSULTATION_ENDED_DOCTOR:", err));
+      }
 
       return NextResponse.json<ApiResponse<typeof updated>>({ success: true, data: updated });
     }

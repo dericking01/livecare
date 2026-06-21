@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createConsultationRoom } from "@/lib/daily";
 import { emitDoctorReady } from "@/lib/socket-server";
+import { triggerNotification } from "@/lib/notifications";
 import type { ApiResponse } from "@/types";
 
 export async function GET() {
@@ -110,6 +111,16 @@ export async function POST(req: NextRequest) {
         entityId: consultation.id,
       },
     });
+
+    // Fire-and-forget: notify patient that doctor is ready via SMS
+    triggerNotification("CONSULTATION_STARTED", {
+      patientName:    queueEntry.visitor.fullName,
+      patientPhone:   queueEntry.visitor.phone,
+      doctorName:     session.user.name,
+      doctorId:       session.user.id,
+      queueEntryId:   queueEntryId,
+      consultationId: consultation.id,
+    }).catch((err) => console.error("[notifications] CONSULTATION_STARTED:", err));
 
     // Notify visitor that doctor is ready
     emitDoctorReady(

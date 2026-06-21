@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createDoctorSchema } from "@/lib/validations";
+import { triggerNotification } from "@/lib/notifications";
 import bcrypt from "bcryptjs";
 import type { ApiResponse } from "@/types";
 
@@ -73,22 +74,24 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
 
+    const { phone, ...userDataWithoutPhone } = parsed.data;
     const user = await prisma.user.create({
       data: {
-        ...parsed.data,
+        ...userDataWithoutPhone,
+        ...(phone ? { phone } : {}),
         password: hashedPassword,
       },
       select: {
         id: true,
         name: true,
         email: true,
+        phone: true,
         role: true,
         isActive: true,
         createdAt: true,
       },
     });
 
-    // Log creation separately — don't fail the response if logging fails
     prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -98,6 +101,16 @@ export async function POST(req: NextRequest) {
         metadata: { role: user.role },
       },
     }).catch((e) => console.error("Activity log failed:", e));
+
+    const roleLabel: Record<string, string> = {
+      DOCTOR: "Doctor", BOOTH_ATTENDANT: "Booth Attendant", ADMIN: "Administrator",
+    };
+    triggerNotification("NEW_STAFF_ACCOUNT", {
+      staffName:     user.name,
+      staffRole:     roleLabel[user.role] ?? user.role,
+      recipientName: user.name,
+      recipientPhone: user.phone ?? undefined,
+    }).catch((e) => console.error("[notifications] NEW_STAFF_ACCOUNT:", e));
 
     return NextResponse.json<ApiResponse<typeof user>>(
       { success: true, data: user },

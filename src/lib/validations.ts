@@ -87,6 +87,7 @@ export const createDoctorSchema = z.object({
     .regex(/[A-Z]/, "Password must contain an uppercase letter")
     .regex(/[0-9]/, "Password must contain a number"),
   role: z.enum(["DOCTOR", "BOOTH_ATTENDANT", "ADMIN"]).default("DOCTOR"),
+  phone: tanzanianPhone.optional().or(z.literal("")),
 });
 
 export type CreateDoctorInput = z.infer<typeof createDoctorSchema>;
