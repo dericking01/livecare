@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  Users, Clock, Video, RefreshCw, Play, AlertCircle, RotateCcw,
+  Users, Clock, Video, RefreshCw, Play, AlertCircle, RotateCcw, Wifi, WifiOff,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,11 @@ export default function DoctorDashboardPage() {
   const router = useRouter();
   const [queue, setQueue] = useState<QueueEntryWithVisitor[]>([]);
   const [stats, setStats] = useState<Stats>({ waiting: 0, active: 0, completed: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [startingId, setStartingId] = useState<string | null>(null);
+  const [isLoading,          setIsLoading]          = useState(true);
+  const [startingId,         setStartingId]         = useState<string | null>(null);
   const [activeConsultation, setActiveConsultation] = useState<ActiveConsultation>(null);
+  const [isOnline,           setIsOnline]           = useState(false);
+  const [togglingOnline,     setTogglingOnline]     = useState(false);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -45,6 +47,40 @@ export default function DoctorDashboardPage() {
       setIsLoading(false);
     }
   }, []);
+
+  // Fetch own online status on mount
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setIsOnline(j.data.isOnline); })
+      .catch(() => {});
+  }, []);
+
+  async function toggleOnline() {
+    setTogglingOnline(true);
+    const next = !isOnline;
+    try {
+      const res = await fetch("/api/doctor/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOnline: next }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setIsOnline(next);
+      toast({
+        variant: "success",
+        title: next ? "You are now Online" : "You are now Offline",
+        description: next
+          ? "You will receive new patient notifications."
+          : "You will not receive new patient notifications.",
+      });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Status update failed", description: (err as Error).message });
+    } finally {
+      setTogglingOnline(false);
+    }
+  }
 
   const fetchActiveConsultation = useCallback(async () => {
     try {
@@ -150,19 +186,37 @@ export default function DoctorDashboardPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900">Doctor Dashboard</h1>
           <p className="text-gray-500 mt-1">Good {new Date().getHours() < 12 ? "morning" : "afternoon"}, {session?.user?.name?.split(" ")[0]}</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => { fetchQueue(); fetchStats(); }}
-          className="gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Online / Offline Toggle */}
+          <button
+            onClick={toggleOnline}
+            disabled={togglingOnline}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2 ${
+              isOnline
+                ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+            } disabled:opacity-60`}
+          >
+            {isOnline ? (
+              <><Wifi className="w-4 h-4 animate-pulse" /> Online</>
+            ) : (
+              <><WifiOff className="w-4 h-4" /> Offline</>
+            )}
+          </button>
+          <Button
+            variant="outline"
+            onClick={() => { fetchQueue(); fetchStats(); fetchActiveConsultation(); }}
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Rejoin banner — shown when this doctor has an active in-progress consultation */}

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   Bell, BellOff, Edit2, CheckCircle, XCircle, Clock, Users,
   Stethoscope, AlertTriangle, UserPlus, MessageSquare, RefreshCw,
-  ChevronLeft, ChevronRight, Filter,
+  ChevronLeft, ChevronRight, Filter, Wifi, WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,11 +23,14 @@ type EventType =
   | "CONSULTATION_ENDED_DOCTOR"
   | "HIGH_RISK_ASSESSMENT"
   | "NEW_STAFF_ACCOUNT"
-  | "LONG_WAIT_ALERT";
+  | "LONG_WAIT_ALERT"
+  | "DOCTOR_WENT_ONLINE"
+  | "DOCTOR_WENT_OFFLINE";
 
 type RecipientType =
   | "PATIENT" | "ALL_DOCTORS" | "ASSIGNED_DOCTOR"
-  | "ALL_ADMINS" | "ALL_BOOTH_ATTENDANTS" | "ALL_STAFF" | "CUSTOM_PHONE";
+  | "ALL_ADMINS" | "ALL_BOOTH_ATTENDANTS" | "ALL_STAFF" | "CUSTOM_PHONE"
+  | "ONLINE_DOCTORS_ONLY" | "ONLINE_DOCTORS_ADMINS_BOOTH";
 
 type LogStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED";
 
@@ -125,16 +128,32 @@ const EVENT_META: Record<EventType, {
     bg: "bg-yellow-100",
     variables: ["patientName", "queueNumber", "waitMinutes", "date", "time"],
   },
+  DOCTOR_WENT_ONLINE: {
+    label: "Doctor Went Online",
+    icon: Wifi,
+    color: "text-green-600",
+    bg: "bg-green-100",
+    variables: ["doctorName", "date", "time"],
+  },
+  DOCTOR_WENT_OFFLINE: {
+    label: "Doctor Went Offline",
+    icon: WifiOff,
+    color: "text-gray-500",
+    bg: "bg-gray-100",
+    variables: ["doctorName", "date", "time"],
+  },
 };
 
 const RECIPIENT_LABELS: Record<RecipientType, string> = {
-  PATIENT: "Patient",
-  ALL_DOCTORS: "All Doctors",
-  ASSIGNED_DOCTOR: "Assigned Doctor",
-  ALL_ADMINS: "All Admins",
-  ALL_BOOTH_ATTENDANTS: "All Booth Attendants",
-  ALL_STAFF: "All Staff",
-  CUSTOM_PHONE: "New User (their phone)",
+  PATIENT:                    "Patient",
+  ALL_DOCTORS:                "All Active Doctors",
+  ASSIGNED_DOCTOR:            "Assigned Doctor",
+  ALL_ADMINS:                 "All Active Admins",
+  ALL_BOOTH_ATTENDANTS:       "All Active Booth Attendants",
+  ALL_STAFF:                  "All Active Staff",
+  CUSTOM_PHONE:               "New User (their phone)",
+  ONLINE_DOCTORS_ONLY:        "Online Doctors Only",
+  ONLINE_DOCTORS_ADMINS_BOOTH:"Online Doctors + Admins + Booth",
 };
 
 const STATUS_STYLES: Record<LogStatus, { label: string; class: string }> = {
@@ -168,8 +187,9 @@ function EditDialog({
   onClose: () => void;
   onSaved: (t: NotificationTemplate) => void;
 }) {
-  const [message, setMessage] = useState(template.messageTemplate);
-  const [saving, setSaving] = useState(false);
+  const [message,       setMessage]       = useState(template.messageTemplate);
+  const [recipientType, setRecipientType] = useState<RecipientType>(template.recipientType);
+  const [saving,        setSaving]        = useState(false);
   const meta = EVENT_META[template.eventType];
 
   async function save() {
@@ -178,12 +198,12 @@ function EditDialog({
       const res = await fetch(`/api/admin/notifications/templates/${template.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageTemplate: message }),
+        body: JSON.stringify({ messageTemplate: message, recipientType }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       toast({ variant: "success", title: "Template saved" });
-      onSaved({ ...template, messageTemplate: message });
+      onSaved({ ...template, messageTemplate: message, recipientType });
     } catch (err) {
       toast({ variant: "destructive", title: "Save failed", description: (err as Error).message });
     } finally {
@@ -205,6 +225,40 @@ function EditDialog({
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
+          {/* Recipient Type */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+              Send To
+            </label>
+            <select
+              value={recipientType}
+              onChange={(e) => setRecipientType(e.target.value as RecipientType)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-afya-500"
+            >
+              <optgroup label="Patient">
+                <option value="PATIENT">Patient (the visitor)</option>
+                <option value="CUSTOM_PHONE">New User (their own phone)</option>
+              </optgroup>
+              <optgroup label="Doctors">
+                <option value="ONLINE_DOCTORS_ONLY">Online Doctors Only ★</option>
+                <option value="ALL_DOCTORS">All Active Doctors</option>
+                <option value="ASSIGNED_DOCTOR">Assigned Doctor (for that session)</option>
+              </optgroup>
+              <optgroup label="Staff">
+                <option value="ONLINE_DOCTORS_ADMINS_BOOTH">Online Doctors + Admins + Booth ★</option>
+                <option value="ALL_ADMINS">All Active Admins</option>
+                <option value="ALL_BOOTH_ATTENDANTS">All Active Booth Attendants</option>
+                <option value="ALL_STAFF">All Active Staff</option>
+              </optgroup>
+            </select>
+            {(recipientType === "ONLINE_DOCTORS_ONLY" || recipientType === "ONLINE_DOCTORS_ADMINS_BOOTH") && (
+              <p className="text-xs text-blue-600 mt-1">
+                ★ Only staff with a phone number who are marked Active (and Online for doctors) will receive this SMS.
+              </p>
+            )}
+          </div>
+
+          {/* Message template */}
           <div>
             <label className="text-sm font-semibold text-gray-700 block mb-1.5">
               Message Template
@@ -222,7 +276,7 @@ function EditDialog({
 
           <div className="bg-gray-50 rounded-xl p-3">
             <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-              Available variables
+              Available variables — click to insert
             </div>
             <div className="flex flex-wrap gap-1.5">
               {meta.variables.map((v) => (
@@ -236,11 +290,6 @@ function EditDialog({
                 </code>
               ))}
             </div>
-            <div className="text-xs text-gray-400 mt-2">Click a variable to insert it at the end.</div>
-          </div>
-
-          <div className="text-xs text-gray-500">
-            <span className="font-medium">Recipient:</span> {RECIPIENT_LABELS[template.recipientType]}
           </div>
         </div>
 

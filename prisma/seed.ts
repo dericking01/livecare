@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import { PrismaClient, Role, Gender, AgeGroup, NotificationEventType, NotificationRecipient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -103,10 +104,10 @@ async function main() {
     {
       eventType: NotificationEventType.PATIENT_JOINED_QUEUE,
       name: "Patient Joined Queue",
-      description: "Sent to all doctors when a new patient enters the waiting queue.",
+      description: "Sent to online doctors + all active admins and booth attendants when a new patient enters the waiting queue.",
       messageTemplate:
         "AfyaCall Alert: {{patientName}} has joined the queue (No. {{queueNumber}}). Please log in to attend them. meet.afyacall.co.tz",
-      recipientType: NotificationRecipient.ALL_DOCTORS,
+      recipientType: NotificationRecipient.ONLINE_DOCTORS_ADMINS_BOOTH,
     },
     {
       eventType: NotificationEventType.CONSULTATION_STARTED,
@@ -151,17 +152,33 @@ async function main() {
     {
       eventType: NotificationEventType.LONG_WAIT_ALERT,
       name: "Long Wait Time Alert",
-      description: "Sent to all staff when a patient has been waiting more than 15 minutes. Rate-limited to once per patient per 60 minutes.",
+      description: "Sent to online doctors + all active admins and booth attendants when a patient has been waiting more than 15 minutes. Rate-limited to once per patient per 60 minutes.",
       messageTemplate:
         "AfyaCall WAIT ALERT: {{patientName}} (Queue #{{queueNumber}}) has been waiting {{waitMinutes}} mins. Please attend to them urgently. - AfyaCall",
-      recipientType: NotificationRecipient.ALL_STAFF,
+      recipientType: NotificationRecipient.ONLINE_DOCTORS_ADMINS_BOOTH,
+    },
+    {
+      eventType: NotificationEventType.DOCTOR_WENT_ONLINE,
+      name: "Doctor Went Online",
+      description: "Sent to admins when a doctor marks themselves as available for consultations.",
+      messageTemplate:
+        "AfyaCall: Dr. {{doctorName}} is now ONLINE and available for consultations. {{date}} {{time}}",
+      recipientType: NotificationRecipient.ALL_ADMINS,
+    },
+    {
+      eventType: NotificationEventType.DOCTOR_WENT_OFFLINE,
+      name: "Doctor Went Offline",
+      description: "Sent to admins when a doctor marks themselves as unavailable.",
+      messageTemplate:
+        "AfyaCall: Dr. {{doctorName}} has gone OFFLINE. Please check doctor coverage. {{date}} {{time}}",
+      recipientType: NotificationRecipient.ALL_ADMINS,
     },
   ];
 
   for (const tpl of notificationTemplates) {
     await prisma.notificationTemplate.upsert({
       where:  { eventType: tpl.eventType },
-      update: { name: tpl.name, description: tpl.description },
+      update: { name: tpl.name, description: tpl.description, recipientType: tpl.recipientType },
       create: tpl,
     });
     console.log(`✅ Notification template: ${tpl.name}`);

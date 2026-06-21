@@ -78,6 +78,39 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 // ─── Doctor Management ────────────────────────────────────────────────────────
 
+export const updateProfileSchema = z.object({
+  name:            z.string().min(2, "Name must be at least 2 characters").max(100).optional(),
+  email:           z.string().email("Enter a valid email address").optional(),
+  phone:           tanzanianPhone.optional().or(z.literal("")),
+  currentPassword: z.string().optional(),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[0-9]/, "Password must contain a number")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export const adminUpdateUserSchema = z.object({
+  name:     z.string().min(2, "Name must be at least 2 characters").max(100).optional(),
+  email:    z.string().email("Enter a valid email address").optional(),
+  phone:    tanzanianPhone.optional().or(z.literal("")),
+  role:     z.enum(["DOCTOR", "BOOTH_ATTENDANT", "ADMIN"]).optional(),
+  isActive: z.boolean().optional(),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain uppercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
 export const createDoctorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Enter a valid email address"),

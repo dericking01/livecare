@@ -56,16 +56,6 @@ enum ConsultationStatus {
 
 // ─── Notification Enums ───────────────────────────────────────────────────────
 
-enum NotificationEventType {
-  PATIENT_JOINED_QUEUE
-  CONSULTATION_STARTED
-  CONSULTATION_ENDED_PATIENT
-  CONSULTATION_ENDED_DOCTOR
-  HIGH_RISK_ASSESSMENT
-  NEW_STAFF_ACCOUNT
-  LONG_WAIT_ALERT
-}
-
 enum NotificationRecipient {
   PATIENT
   ALL_DOCTORS
@@ -74,6 +64,20 @@ enum NotificationRecipient {
   ALL_BOOTH_ATTENDANTS
   ALL_STAFF
   CUSTOM_PHONE
+  ONLINE_DOCTORS_ONLY
+  ONLINE_DOCTORS_ADMINS_BOOTH
+}
+
+enum NotificationEventType {
+  PATIENT_JOINED_QUEUE
+  CONSULTATION_STARTED
+  CONSULTATION_ENDED_PATIENT
+  CONSULTATION_ENDED_DOCTOR
+  HIGH_RISK_ASSESSMENT
+  NEW_STAFF_ACCOUNT
+  LONG_WAIT_ALERT
+  DOCTOR_WENT_ONLINE
+  DOCTOR_WENT_OFFLINE
 }
 
 enum NotificationStatus {
@@ -93,6 +97,7 @@ model User {
   phone       String?
   role        Role      @default(BOOTH_ATTENDANT)
   isActive    Boolean   @default(true)
+  isOnline    Boolean   @default(false)
   avatar      String?
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())

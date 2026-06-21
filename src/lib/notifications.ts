@@ -19,7 +19,6 @@ export interface NotificationContext {
   riskLevel?: string;
   staffName?: string;
   staffRole?: string;
-  // Used when recipientType is CUSTOM_PHONE
   recipientPhone?: string;
   recipientName?: string;
 }
@@ -46,16 +45,16 @@ function makeOriginatorId(eventType: string): string {
 function buildVars(ctx: NotificationContext): Record<string, string | number | undefined> {
   const now = new Date();
   return {
-    patientName:  ctx.patientName,
-    patientPhone: ctx.patientPhone,
-    queueNumber:  ctx.queueNumber,
-    waitMinutes:  ctx.waitMinutes,
-    doctorName:   ctx.doctorName,
-    duration:     ctx.duration,
-    riskScore:    ctx.riskScore,
-    riskLevel:    ctx.riskLevel,
-    staffName:    ctx.staffName,
-    staffRole:    ctx.staffRole,
+    patientName:   ctx.patientName,
+    patientPhone:  ctx.patientPhone,
+    queueNumber:   ctx.queueNumber,
+    waitMinutes:   ctx.waitMinutes,
+    doctorName:    ctx.doctorName,
+    duration:      ctx.duration,
+    riskScore:     ctx.riskScore,
+    riskLevel:     ctx.riskLevel,
+    staffName:     ctx.staffName,
+    staffRole:     ctx.staffRole,
     recipientName: ctx.recipientName,
     date: now.toLocaleDateString("en-TZ", { day: "2-digit", month: "short", year: "numeric" }),
     time: now.toLocaleTimeString("en-TZ", { hour: "2-digit", minute: "2-digit" }),
@@ -123,6 +122,35 @@ async function resolveRecipients(
       return staff
         .filter((s): s is typeof s & { phone: string } => !!s.phone)
         .map((s) => ({ name: s.name, phone: s.phone, type: "ALL_STAFF" as NotificationRecipient }));
+    }
+
+    case "ONLINE_DOCTORS_ONLY": {
+      const docs = await prisma.user.findMany({
+        where: { role: "DOCTOR", isActive: true, isOnline: true, deletedAt: null, phone: { not: null } },
+        select: { name: true, phone: true },
+      });
+      return docs
+        .filter((d): d is typeof d & { phone: string } => !!d.phone)
+        .map((d) => ({ name: d.name, phone: d.phone, type: "ONLINE_DOCTORS_ONLY" as NotificationRecipient }));
+    }
+
+    case "ONLINE_DOCTORS_ADMINS_BOOTH": {
+      const users = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          phone: { not: null },
+          OR: [
+            { role: "DOCTOR", isOnline: true },
+            { role: "ADMIN" },
+            { role: "BOOTH_ATTENDANT" },
+          ],
+        },
+        select: { name: true, phone: true },
+      });
+      return users
+        .filter((u): u is typeof u & { phone: string } => !!u.phone)
+        .map((u) => ({ name: u.name, phone: u.phone, type: "ONLINE_DOCTORS_ADMINS_BOOTH" as NotificationRecipient }));
     }
 
     default:

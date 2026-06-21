@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
+import { UserCircle } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 
 export default async function BoothLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +41,13 @@ export default async function BoothLayout({ children }: { children: React.ReactN
                   {session.user.name.charAt(0)}
                 </span>
               </div>
+              <Link
+                href="/booth/profile"
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-afya-600 transition-colors"
+                title="My Profile"
+              >
+                <UserCircle className="w-4 h-4" />
+              </Link>
               <SignOutButton className="text-sm text-gray-400 hover:text-red-500 transition-colors" />
             </div>
           </div>

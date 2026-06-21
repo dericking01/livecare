@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { NotificationRecipient } from "@prisma/client";
 import type { ApiResponse } from "@/types";
 
 export async function PATCH(
@@ -18,6 +19,7 @@ export async function PATCH(
       name?: string;
       description?: string;
       messageTemplate?: string;
+      recipientType?: NotificationRecipient;
       isEnabled?: boolean;
     };
 
@@ -27,6 +29,7 @@ export async function PATCH(
         ...(body.name            !== undefined && { name:            body.name }),
         ...(body.description     !== undefined && { description:     body.description }),
         ...(body.messageTemplate !== undefined && { messageTemplate: body.messageTemplate }),
+        ...(body.recipientType   !== undefined && { recipientType:   body.recipientType }),
         ...(body.isEnabled       !== undefined && { isEnabled:       body.isEnabled }),
       },
     });

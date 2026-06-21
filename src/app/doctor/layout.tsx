@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, UserCircle } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +39,13 @@ export default async function DoctorLayout({ children }: { children: React.React
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
+              </Link>
+              <Link
+                href="/doctor/profile"
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-afya-600 transition-colors"
+              >
+                <UserCircle className="w-4 h-4" />
+                My Profile
               </Link>
 
               <div className="h-6 w-px bg-gray-200" />

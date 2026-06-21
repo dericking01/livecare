@@ -54,6 +54,11 @@ export function emitQueuePositionUpdate(
   });
 }
 
+export function emitDoctorStatusChanged(doctorId: string, isOnline: boolean, name: string): void {
+  emitToRoom("admin:dashboard", "doctor:status-changed", { doctorId, isOnline, name });
+  emitToRoom("doctor:dashboard", "doctor:status-changed", { doctorId, isOnline, name });
+}
+
 export function emitNewVisitorJoined(): void {
   emitToRoom("doctor:dashboard", "doctor:dashboard-update", {});
   emitToRoom("admin:dashboard", "admin:stats-update", {});
