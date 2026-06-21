@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, UserCheck, UserX, Stethoscope, Users, Edit2, Trash2, Wifi } from "lucide-react";
+import {
+  Plus, UserCheck, UserX, Stethoscope, Users, Edit2, Trash2, Wifi,
+  ChevronUp, ChevronDown, ChevronsUpDown, Search, X, AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +18,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
-import { createDoctorSchema, adminUpdateUserSchema, type CreateDoctorInput, type AdminUpdateUserInput } from "@/lib/validations";
+import {
+  createDoctorSchema, adminUpdateUserSchema,
+  type CreateDoctorInput, type AdminUpdateUserInput,
+} from "@/lib/validations";
 import { formatDate } from "@/lib/utils";
 import { getSocket } from "@/lib/socket";
 
@@ -32,18 +38,43 @@ type StaffUser = {
   _count: { consultations: number };
 };
 
+type SortKey = "name" | "role" | "status" | "sessions" | "lastLogin";
+type SortDir = "asc" | "desc";
+
+const roleConfig = {
+  ADMIN:           { label: "Admin",           icon: "🔐" },
+  DOCTOR:          { label: "Doctor",          icon: "🩺" },
+  BOOTH_ATTENDANT: { label: "Booth Attendant", icon: "🎫" },
+};
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (col !== sortKey) return <ChevronsUpDown className="w-3.5 h-3.5 text-gray-300 ml-1 inline" />;
+  return sortDir === "asc"
+    ? <ChevronUp   className="w-3.5 h-3.5 text-afya-500 ml-1 inline" />
+    : <ChevronDown className="w-3.5 h-3.5 text-afya-500 ml-1 inline" />;
+}
+
 export default function DoctorsPage() {
-  const [isAddOpen,  setIsAddOpen]  = useState(false);
-  const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
+  const [isAddOpen,    setIsAddOpen]    = useState(false);
+  const [editingUser,  setEditingUser]  = useState<StaffUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState<StaffUser | null>(null);
+  const [myId,         setMyId]         = useState<string | null>(null);
+
+  // ── Filters ───────────────────────────────────────────────────────────────
+  const [search,       setSearch]       = useState("");
+  const [filterRole,   setFilterRole]   = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+
+  // ── Sort ─────────────────────────────────────────────────────────────────
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
   const queryClient = useQueryClient();
 
-  // Fetch own session id to prevent self-deactivation
   useEffect(() => {
     fetch("/api/auth/session").then((r) => r.json()).then((s) => setMyId(s?.user?.id ?? null));
   }, []);
 
-  // Real-time: join admin room and refresh list when a doctor's online status changes
   useEffect(() => {
     const socket = getSocket();
     socket.emit("admin:join");
@@ -57,17 +88,62 @@ export default function DoctorsPage() {
   const { data: users = [], isLoading } = useQuery<StaffUser[]>({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/users");
+      const res  = await fetch("/api/admin/users");
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       return json.data;
     },
   });
 
-  // ── Create ────────────────────────────────────────────────────────────────
+  // ── Filtered + sorted rows ────────────────────────────────────────────────
+  const displayedUsers = useMemo(() => {
+    let rows = [...users];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      rows = rows.filter(
+        (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      );
+    }
+    if (filterRole !== "ALL")   rows = rows.filter((u) => u.role === filterRole);
+    if (filterStatus === "ACTIVE")   rows = rows.filter((u) =>  u.isActive);
+    if (filterStatus === "INACTIVE") rows = rows.filter((u) => !u.isActive);
+    if (filterStatus === "ONLINE")   rows = rows.filter((u) => u.isOnline);
+    if (filterStatus === "OFFLINE")  rows = rows.filter((u) => u.role === "DOCTOR" && !u.isOnline);
+
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name")      cmp = a.name.localeCompare(b.name);
+      if (sortKey === "role")      cmp = a.role.localeCompare(b.role);
+      if (sortKey === "status")    cmp = Number(b.isActive) - Number(a.isActive);
+      if (sortKey === "sessions")  cmp = a._count.consultations - b._count.consultations;
+      if (sortKey === "lastLogin") {
+        const ta = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+        const tb = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+        cmp = ta - tb;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return rows;
+  }, [users, search, filterRole, filterStatus, sortKey, sortDir]);
+
+  function toggleSort(col: SortKey) {
+    if (sortKey === col) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(col); setSortDir("asc"); }
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setFilterRole("ALL");
+    setFilterStatus("ALL");
+  }
+  const hasFilters = search || filterRole !== "ALL" || filterStatus !== "ALL";
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: async (data: CreateDoctorInput) => {
-      const res = await fetch("/api/admin/users", {
+      const res  = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -82,15 +158,12 @@ export default function DoctorsPage() {
       resetCreate();
       toast({ variant: "success", title: "Staff member created" });
     },
-    onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Creation failed", description: error.message });
-    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Creation failed", description: e.message }),
   });
 
-  // ── Update ────────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: AdminUpdateUserInput }) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const res  = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -105,38 +178,35 @@ export default function DoctorsPage() {
       resetEdit();
       toast({ variant: "success", title: "Profile updated" });
     },
-    onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Update failed", description: error.message });
-    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Update failed", description: e.message }),
   });
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const res  = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setDeletingUser(null);
       toast({ variant: "success", title: "User removed" });
     },
-    onError: (e: Error) => toast({ variant: "destructive", title: "Delete failed", description: e.message }),
+    onError: (e: Error) => {
+      toast({ variant: "destructive", title: "Delete failed", description: e.message });
+      setDeletingUser(null);
+    },
   });
 
-  // ── Create form ───────────────────────────────────────────────────────────
+  // ── Forms ─────────────────────────────────────────────────────────────────
   const {
     register: regCreate, handleSubmit: hsCreate,
-    setValue: svCreate, reset: resetCreate, formState: { errors: errCreate },
-  } = useForm<CreateDoctorInput>({
-    resolver: zodResolver(createDoctorSchema),
-    defaultValues: { role: "DOCTOR" },
-  });
+    setValue: svCreate,  reset: resetCreate, formState: { errors: errCreate },
+  } = useForm<CreateDoctorInput>({ resolver: zodResolver(createDoctorSchema), defaultValues: { role: "DOCTOR" } });
 
-  // ── Edit form ─────────────────────────────────────────────────────────────
   const {
     register: regEdit, handleSubmit: hsEdit,
-    setValue: svEdit, reset: resetEdit, formState: { errors: errEdit },
+    setValue: svEdit,  reset: resetEdit, formState: { errors: errEdit },
   } = useForm<AdminUpdateUserInput>({ resolver: zodResolver(adminUpdateUserSchema) });
 
   function openEdit(user: StaffUser) {
@@ -150,14 +220,10 @@ export default function DoctorsPage() {
     });
   }
 
-  const roleConfig = {
-    ADMIN:          { label: "Admin",           icon: "🔐" },
-    DOCTOR:         { label: "Doctor",          icon: "🩺" },
-    BOOTH_ATTENDANT:{ label: "Booth Attendant", icon: "🎫" },
-  };
-
   const online  = users.filter((u) => u.role === "DOCTOR" && u.isOnline).length;
   const doctors = users.filter((u) => u.role === "DOCTOR").length;
+
+  const thClass = "text-left px-6 py-4 text-sm font-semibold text-gray-500 select-none cursor-pointer hover:text-gray-700 whitespace-nowrap";
 
   return (
     <div className="space-y-8">
@@ -175,10 +241,10 @@ export default function DoctorsPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Staff",    value: users.length,                           icon: Users,      color: "bg-gray-100 text-gray-600" },
-          { label: "Doctors",        value: doctors,                                icon: Stethoscope, color: "bg-afya-100 text-afya-600" },
-          { label: "Active",         value: users.filter((u) => u.isActive).length, icon: UserCheck,  color: "bg-green-100 text-green-600" },
-          { label: "Doctors Online", value: online,                                 icon: Wifi,       color: "bg-blue-100 text-blue-600" },
+          { label: "Total Staff",    value: users.length,                            icon: Users,       color: "bg-gray-100 text-gray-600" },
+          { label: "Doctors",        value: doctors,                                 icon: Stethoscope, color: "bg-afya-100 text-afya-600" },
+          { label: "Active",         value: users.filter((u) => u.isActive).length,  icon: UserCheck,   color: "bg-green-100 text-green-600" },
+          { label: "Doctors Online", value: online,                                  icon: Wifi,        color: "bg-blue-100 text-blue-600" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
             <div className="flex items-center gap-4">
@@ -196,30 +262,105 @@ export default function DoctorsPage() {
 
       {/* Staff Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">All Staff Members</h2>
+        {/* Table header + filters */}
+        <div className="px-6 py-4 border-b border-gray-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">All Staff Members</h2>
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" /> Clear filters
+              </button>
+            )}
+          </div>
+
+          {/* Filter row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email…"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-afya-400/30 focus:border-afya-400 transition"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Role filter */}
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="text-sm rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-afya-400/30 focus:border-afya-400 transition text-gray-700"
+            >
+              <option value="ALL">All Roles</option>
+              <option value="DOCTOR">Doctor</option>
+              <option value="BOOTH_ATTENDANT">Booth Attendant</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+
+            {/* Status filter */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-sm rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-afya-400/30 focus:border-afya-400 transition text-gray-700"
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="ONLINE">Online (Doctors)</option>
+              <option value="OFFLINE">Offline (Doctors)</option>
+            </select>
+
+            {/* Result count */}
+            <span className="text-xs text-gray-400 shrink-0">
+              {displayedUsers.length} of {users.length}
+            </span>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin w-8 h-8 border-2 border-afya-500/30 border-t-afya-500 rounded-full" />
           </div>
+        ) : displayedUsers.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No staff members match your filters.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Name</th>
+                  <th className={thClass} onClick={() => toggleSort("name")}>
+                    Name <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Email / Phone</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Role</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Sessions</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Last Login</th>
+                  <th className={thClass} onClick={() => toggleSort("role")}>
+                    Role <SortIcon col="role" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
+                  <th className={thClass} onClick={() => toggleSort("status")}>
+                    Status <SortIcon col="status" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
+                  <th className={thClass} onClick={() => toggleSort("sessions")}>
+                    Sessions <SortIcon col="sessions" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
+                  <th className={thClass} onClick={() => toggleSort("lastLogin")}>
+                    Last Login <SortIcon col="lastLogin" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-500">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {users.map((user) => {
+                {displayedUsers.map((user) => {
                   const role = roleConfig[user.role as keyof typeof roleConfig];
                   return (
                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
@@ -281,10 +422,7 @@ export default function DoctorsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                if (confirm(`Remove ${user.name}? This cannot be undone.`))
-                                  deleteMutation.mutate(user.id);
-                              }}
+                              onClick={() => setDeletingUser(user)}
                               className="gap-1.5 h-8 text-xs text-red-500 hover:text-red-600 hover:border-red-300"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -308,7 +446,6 @@ export default function DoctorsPage() {
             <DialogTitle>Add Staff Member</DialogTitle>
             <DialogDescription>Create a new doctor, booth attendant, or admin account.</DialogDescription>
           </DialogHeader>
-
           <form onSubmit={hsCreate((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
             <div className="space-y-1">
               <Label>Full Name</Label>
@@ -359,7 +496,6 @@ export default function DoctorsPage() {
                 Update profile details, role, or account status. Leave password blank to keep current.
               </DialogDescription>
             </DialogHeader>
-
             <form onSubmit={hsEdit((d) => updateMutation.mutate({ id: editingUser.id, data: d }))} className="space-y-4 mt-2">
               <div className="space-y-1">
                 <Label>Full Name</Label>
@@ -414,8 +550,11 @@ export default function DoctorsPage() {
               </div>
               {editingUser.role === "DOCTOR" && (
                 <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                  Online status: <span className={`font-semibold ${editingUser.isOnline ? "text-green-600" : "text-gray-500"}`}>{editingUser.isOnline ? "● Online" : "○ Offline"}</span>
-                  {" "}(doctor controls this from their dashboard)
+                  Online status:{" "}
+                  <span className={`font-semibold ${editingUser.isOnline ? "text-green-600" : "text-gray-500"}`}>
+                    {editingUser.isOnline ? "● Online" : "○ Offline"}
+                  </span>{" "}
+                  (doctor controls this from their dashboard)
                 </div>
               )}
               <DialogFooter className="gap-2 pt-2">
@@ -423,6 +562,47 @@ export default function DoctorsPage() {
                 <Button type="submit" loading={updateMutation.isPending}>Save Changes</Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Delete Confirmation Dialog ────────────────────────────────────────── */}
+      {deletingUser && (
+        <Dialog open onOpenChange={() => !deleteMutation.isPending && setDeletingUser(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <DialogTitle className="text-gray-900">Remove Staff Member</DialogTitle>
+              </div>
+              <DialogDescription className="pt-1">
+                Are you sure you want to remove{" "}
+                <span className="font-semibold text-gray-800">{deletingUser.name}</span>?
+                Their account will be deactivated and they will no longer be able to log in.
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeletingUser(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                loading={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deletingUser.id)}
+                className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Remove
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
