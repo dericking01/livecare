@@ -108,12 +108,30 @@ export type AgeDistribution = {
   percentage: number;
 };
 
+export type DailyTrend = {
+  date: string;
+  visitors: number;
+  consultations: number;
+  assessments: number;
+};
+
+export type DoctorStat = {
+  doctorId: string;
+  doctorName: string;
+  consultations: number;
+  avgDurationMins: number;
+};
+
 export type AnalyticsData = {
   stats: DashboardStats;
   hourlyData: HourlyData[];
   riskDistribution: RiskDistribution[];
   genderDistribution: GenderDistribution[];
   ageDistribution: AgeDistribution[];
+  dailyTrend?: DailyTrend[];
+  doctorStats?: DoctorStat[];
+  totalAssessments?: number;
+  dateRange?: { from: string; to: string };
 };
 
 // ─── Socket Events ────────────────────────────────────────────────────────────
