@@ -34,18 +34,24 @@ export type VisitorRegistrationInput = z.infer<typeof visitorRegistrationSchema>
 // ─── Health Assessment ────────────────────────────────────────────────────────
 
 export const healthAssessmentSchema = z.object({
-  age: z
-    .number({ required_error: "Age is required" })
-    .int("Age must be a whole number")
-    .min(1, "Age must be at least 1")
-    .max(120, "Age seems incorrect"),
-  gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]),
+  // age and gender are now derived server-side from the visitor record
   smokes: z.boolean(),
+  smokingYears: z.enum(["LESS_1", "1_5", "6_10", "OVER_10"]).optional(),
   drinksAlcohol: z.boolean(),
   exercisesRegularly: z.boolean(),
   hasDiabetes: z.boolean(),
+  diabetesOnMedication: z.boolean().optional(),
   hasHypertension: z.boolean(),
+  hypertensionControlled: z.boolean().optional(),
   hasFamilyHistory: z.boolean(),
+  hasChestPain: z.boolean().optional(),
+  hasShortBreath: z.boolean().optional(),
+  hasHighCholesterol: z.boolean().optional(),
+  hasStressAnxiety: z.boolean().optional(),
+  hasFatigueLowEnergy: z.boolean().optional(),
+  hasJointPain: z.boolean().optional(),
+  hasDizziness: z.boolean().optional(),
+  wellbeing: z.enum(["POOR", "FAIR", "GOOD", "EXCELLENT"]).optional(),
   bmi: z.number().min(10).max(80).optional(),
 });
 

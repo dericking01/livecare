@@ -59,6 +59,18 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+
+    // Single visitor lookup by ID
+    const id = searchParams.get("id");
+    if (id) {
+      const visitor = await prisma.visitor.findUnique({
+        where: { id, deletedAt: null },
+        select: { id: true, fullName: true, gender: true, ageGroup: true },
+      });
+      if (!visitor) return NextResponse.json({ success: false, error: "Visitor not found" }, { status: 404 });
+      return NextResponse.json({ success: true, data: visitor });
+    }
+
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") ?? "20", 10));
     const search = searchParams.get("search") ?? "";
