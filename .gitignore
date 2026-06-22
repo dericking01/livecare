@@ -39,6 +39,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.claude/
 
 # API DOC
 API_DOCS.md
