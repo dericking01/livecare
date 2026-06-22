@@ -64,6 +64,12 @@ app.prepare().then(() => {
       console.log(`[Socket] Admin joined dashboard`);
     });
 
+    // Any authenticated user joins their personal room (for force-logout etc.)
+    socket.on("user:session:join", (userId) => {
+      socket.join(`user:${userId}`);
+      console.log(`[Socket] User ${userId} joined personal room`);
+    });
+
     socket.on("disconnect", (reason) => {
       console.log(`[Socket] Client disconnected: ${socket.id} (${reason})`);
     });

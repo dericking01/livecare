@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, UserCircle } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
+import { ForceLogoutWatcher } from "@/components/shared/ForceLogoutWatcher";
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -71,6 +72,7 @@ export default async function DoctorLayout({ children }: { children: React.React
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+      <ForceLogoutWatcher />
     </div>
   );
 }

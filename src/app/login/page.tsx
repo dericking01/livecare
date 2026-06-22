@@ -29,6 +29,22 @@ export default function LoginPage() {
   async function onSubmit(data: LoginInput) {
     setIsLoading(true);
     try {
+      // Check if the account is blocked before attempting login
+      const statusRes = await fetch("/api/auth/check-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      const { blocked } = await statusRes.json() as { blocked: boolean };
+      if (blocked) {
+        toast({
+          variant: "destructive",
+          title: "Access Blocked",
+          description: "Your account has been deactivated. Kindly contact your Admin.",
+        });
+        return;
+      }
+
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,

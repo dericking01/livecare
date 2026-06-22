@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { UserCircle } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
+import { ForceLogoutWatcher } from "@/components/shared/ForceLogoutWatcher";
 
 export default async function BoothLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -57,6 +58,7 @@ export default async function BoothLayout({ children }: { children: React.ReactN
       <main className="max-w-5xl mx-auto px-6 py-8">
         {children}
       </main>
+      <ForceLogoutWatcher />
     </div>
   );
 }

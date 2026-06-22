@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus, UserCheck, UserX, Stethoscope, Users, Edit2, Trash2, Wifi,
   ChevronUp, ChevronDown, ChevronsUpDown, Search, X, AlertTriangle,
+  CheckSquare, Square, ToggleLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,9 @@ export default function DoctorsPage() {
   // ── Sort ─────────────────────────────────────────────────────────────────
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // ── Bulk selection ────────────────────────────────────────────────────────
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const queryClient = useQueryClient();
 
@@ -198,6 +202,50 @@ export default function DoctorsPage() {
     },
   });
 
+  const bulkMutation = useMutation({
+    mutationFn: async ({ ids, isActive }: { ids: string[]; isActive: boolean }) => {
+      const res  = await fetch("/api/admin/users/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, isActive }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      return json.data as { updated: number };
+    },
+    onSuccess: (data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setSelected(new Set());
+      toast({
+        variant: "success",
+        title: `${data.updated} account${data.updated !== 1 ? "s" : ""} ${vars.isActive ? "activated" : "deactivated"}`,
+      });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Bulk update failed", description: e.message }),
+  });
+
+  // ── Selection helpers ─────────────────────────────────────────────────────
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    const selectableIds = displayedUsers.filter((u) => u.id !== myId).map((u) => u.id);
+    if (selectableIds.every((id) => selected.has(id))) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(selectableIds));
+    }
+  }
+
+  const selectableCount = displayedUsers.filter((u) => u.id !== myId).length;
+  const allSelected = selectableCount > 0 && displayedUsers.filter((u) => u.id !== myId).every((u) => selected.has(u.id));
+  const someSelected = selected.size > 0 && !allSelected;
+
   // ── Forms ─────────────────────────────────────────────────────────────────
   const {
     register: regCreate, handleSubmit: hsCreate,
@@ -326,6 +374,43 @@ export default function DoctorsPage() {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="px-6 py-3 bg-afya-50 border-b border-afya-200 flex items-center gap-4">
+            <span className="text-sm font-semibold text-afya-700">
+              {selected.size} account{selected.size !== 1 ? "s" : ""} selected
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                loading={bulkMutation.isPending}
+                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), isActive: true })}
+                className="gap-1.5 h-8 text-xs text-green-600 border-green-300 hover:bg-green-50"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                Activate
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={bulkMutation.isPending}
+                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), isActive: false })}
+                className="gap-1.5 h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                Deactivate
+              </Button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-gray-400 hover:text-gray-600 ml-1 flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5" /> Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin w-8 h-8 border-2 border-afya-500/30 border-t-afya-500 rounded-full" />
@@ -340,6 +425,16 @@ export default function DoctorsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
+                  {/* Select-all checkbox */}
+                  <th className="pl-6 pr-2 py-4 w-10">
+                    <button onClick={toggleAll} className="text-gray-400 hover:text-afya-600 transition-colors">
+                      {allSelected
+                        ? <CheckSquare className="w-4 h-4 text-afya-600" />
+                        : someSelected
+                          ? <ToggleLeft className="w-4 h-4 text-afya-400" />
+                          : <Square className="w-4 h-4" />}
+                    </button>
+                  </th>
                   <th className={thClass} onClick={() => toggleSort("name")}>
                     Name <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
                   </th>
@@ -362,8 +457,26 @@ export default function DoctorsPage() {
               <tbody className="divide-y divide-gray-50">
                 {displayedUsers.map((user) => {
                   const role = roleConfig[user.role as keyof typeof roleConfig];
+                  const isSelected = selected.has(user.id);
+                  const isSelf = user.id === myId;
                   return (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={user.id}
+                      className={`hover:bg-gray-50 transition-colors ${isSelected ? "bg-afya-50/50" : ""}`}
+                    >
+                      {/* Row checkbox */}
+                      <td className="pl-6 pr-2 py-4 w-10">
+                        {!isSelf && (
+                          <button
+                            onClick={() => toggleOne(user.id)}
+                            className="text-gray-300 hover:text-afya-600 transition-colors"
+                          >
+                            {isSelected
+                              ? <CheckSquare className="w-4 h-4 text-afya-600" />
+                              : <Square className="w-4 h-4" />}
+                          </button>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="relative">
@@ -418,7 +531,7 @@ export default function DoctorsPage() {
                             <Edit2 className="w-3.5 h-3.5" />
                             Edit
                           </Button>
-                          {user.id !== myId && (
+                          {!isSelf && (
                             <Button
                               variant="outline"
                               size="sm"

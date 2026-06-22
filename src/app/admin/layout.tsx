@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, Users, BarChart3, Bell } from "lucide-react";
 import { SignOutButton } from "@/components/shared/SignOutButton";
+import { ForceLogoutWatcher } from "@/components/shared/ForceLogoutWatcher";
 
 function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
   return (
@@ -71,6 +72,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </main>
+      <ForceLogoutWatcher />
     </div>
   );
 }

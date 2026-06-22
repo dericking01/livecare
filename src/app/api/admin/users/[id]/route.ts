@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { adminUpdateUserSchema } from "@/lib/validations";
+import { emitForceLogout } from "@/lib/socket-server";
 import bcrypt from "bcryptjs";
 import type { ApiResponse } from "@/types";
 
@@ -100,6 +101,11 @@ export async function PATCH(
       },
     });
 
+    // Force-logout the user if their account was deactivated
+    if (isActive === false) {
+      emitForceLogout(id);
+    }
+
     prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -139,6 +145,8 @@ export async function DELETE(
       where: { id },
       data: { deletedAt: new Date(), isActive: false, isOnline: false },
     });
+
+    emitForceLogout(id);
 
     return NextResponse.json<ApiResponse<never>>({ success: true });
   } catch (error) {

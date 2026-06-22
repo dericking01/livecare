@@ -59,6 +59,10 @@ export function emitDoctorStatusChanged(doctorId: string, isOnline: boolean, nam
   emitToRoom("doctor:dashboard", "doctor:status-changed", { doctorId, isOnline, name });
 }
 
+export function emitForceLogout(userId: string): void {
+  emitToRoom(`user:${userId}`, "user:force-logout", {});
+}
+
 export function emitNewVisitorJoined(): void {
   emitToRoom("doctor:dashboard", "doctor:dashboard-update", {});
   emitToRoom("admin:dashboard", "admin:stats-update", {});
