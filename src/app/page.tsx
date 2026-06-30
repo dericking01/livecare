@@ -10,12 +10,8 @@ export default function LandingPage() {
       <div className="min-h-screen flex flex-col">
         {/* Header */}
         <header className="px-6 pt-6 pb-2">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <div className="flex items-center max-w-4xl mx-auto">
             <AfyaLogo size="lg" />
-            <div className="text-right text-white/80">
-              <div className="text-sm font-semibold tracking-wide">Saba Saba</div>
-              <div className="text-xs opacity-60 mt-0.5">Exhibition 2026</div>
-            </div>
           </div>
         </header>
 
@@ -88,7 +84,7 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="px-6 pb-8 text-center">
           <p className="text-afya-300/70 text-xs mb-4 tracking-wide">
-            Powered by AfyaCall Telemedicine · Tanzania
+            Powered by AfyaCall Health Services · Tanzania
           </p>
           <Link
             href="/login"

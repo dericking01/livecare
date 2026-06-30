@@ -12,7 +12,7 @@ export function KioskLayout({ children, className, centered = false }: KioskLayo
   return (
     <div
       className={cn(
-        "min-h-screen bg-gradient-to-br from-afya-900 via-afya-700 to-afya-500",
+        "min-h-screen bg-gradient-to-br from-afya-700 via-afya-600 to-afya-500",
         centered && "flex items-center justify-center",
         className
       )}
@@ -64,7 +64,8 @@ export function AfyaLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
       alt="AfyaCall"
       width={width}
       height={height}
-      className="object-contain drop-shadow-md"
+      className="object-contain"
+      style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.55)) drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }}
       priority
     />
   );
